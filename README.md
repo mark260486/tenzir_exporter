@@ -2,7 +2,7 @@
 ---
 Simple Prometheus exporter for Tenzir node metrics written in Python with Flask.
 Tenzir links:
-- [Tenzir GitHub]([https://docs.tenzir.com/get-started](https://github.com/tenzir/tenzir))
+- [Tenzir GitHub](https://github.com/tenzir/tenzir)
 - [Tenzir docs](https://docs.tenzir.com/get-started)
 - [Exported metrics](https://docs.tenzir.com/operators/metrics).
 
