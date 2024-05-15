@@ -39,3 +39,5 @@ If dependencies installation was successful, you can try to run exporter with th
 ```
 uwsgi --http-socket 0.0.0.0:8000 --plugin python3 --wsgi-file tenzir_exporter.py --callable app --stats 0.0.0.0:9191
 ```
+
+File `tenzir.json` contains simple Grafana dashboard for exported metrics.
