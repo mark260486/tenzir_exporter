@@ -1,3 +1,4 @@
 flask
 prometheus_client
 uwsgi
+logger

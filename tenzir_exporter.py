@@ -1,7 +1,15 @@
+# Reviewed October 02, 2024
+
 from prometheus_client import Info, Gauge, CollectorRegistry, push_to_gateway
 from flask import Flask, request
 import json
 import re
+import sys
+from loguru import logger
+
+# Logger initialization
+logger.remove()
+logger.add(sys.stdout, level="DEBUG", format="{time:YYYY-MM-DD HH:mm:ss} - {level} - {message}")
 
 
 class AppMetrics:
@@ -72,68 +80,86 @@ class AppMetrics:
                                                         ['pipeline_id'], registry = self.registry)
         self.tenzir_operator_pipeline_id = Info("tenzir_operator_pipeline_id",
                                                         "Pipeline ID", registry = self.registry)
-
+        # Rebuild metrics
+        self.tenzir_rebuild_partitions = Gauge("tenzir_rebuild_partitions",
+                                               "The number of partitions currently being rebuilt.",
+                                               registry = self.registry)
+        self.tenzir_rebuild_queued_partitions = Gauge("tenzir_rebuild_queued_partitions",
+                                                      "The number of partitions currently queued for rebuilding.",
+                                                      registry = self.registry)
+        
 
     def fetch(self):
-        print(f"Request: {request}")
+        logger.debug(f"# Request: {request}")
         try:
             self.status_data = (request.data).decode('utf-8').splitlines()
         except:
+            logger.error(f"# Cannot complete fetch() request")
             return json.dumps({"error": 1})
 
-        for item in self.status_data:
-            data = json.loads(item)
-            if not(data.get("pipeline_id") is None):
+        logger.debug(f"# Data: {self.status_data}")
+        parsed_data = json.loads('[' + ''.join(self.status_data).replace('}{', '},{') + ']')
+        logger.debug(f"# Parsed data: {parsed_data}")
+        for item in parsed_data:
+            logger.debug(f"# Item in data: {item}")
+            if "schema" in item:
+                continue
+            if not(item.get("pipeline_id") is None):
                 reg = r'[a-z]'
-                duration = re.sub(reg, '', data["duration"])
-                starting_duration = re.sub(reg, '', data["starting_duration"])
-                processing_duration = re.sub(reg, '', data["processing_duration"])
-                scheduled_duration = re.sub(reg, '', data["scheduled_duration"])
-                running_duration = re.sub(reg, '', data["running_duration"])
-                paused_duration = re.sub(reg, '', data["paused_duration"])
-                self.tenzir_operator_run.labels(data["pipeline_id"]).set(duration)
-                self.tenzir_operator_duration.labels(data["pipeline_id"]).set(starting_duration)
-                self.tenzir_operator_starting_duration.labels(data["pipeline_id"]).set(starting_duration)
-                self.tenzir_operator_processing_duration.labels(data["pipeline_id"]).set(processing_duration)
-                self.tenzir_operator_scheduled_duration.labels(data["pipeline_id"]).set(scheduled_duration)
-                self.tenzir_operator_running_duration.labels(data["pipeline_id"]).set(running_duration)
-                self.tenzir_operator_paused_duration.labels(data["pipeline_id"]).set(paused_duration)
-                self.tenzir_operator_input_elements.labels(data["pipeline_id"], data["input"]["unit"]).set(data["input"]["elements"])
-                self.tenzir_operator_output_elements.labels(data["pipeline_id"], data["output"]["unit"]).set(data["output"]["elements"])
-                self.tenzir_operator_input_bytes.labels(data["pipeline_id"], data["input"]["unit"]).set(data["input"]["approx_bytes"])
-                self.tenzir_operator_output_bytes.labels(data["pipeline_id"], data["output"]["unit"]).set(data["output"]["approx_bytes"])
-                self.tenzir_operator_input_unit.labels(data["pipeline_id"]).info({"tenzir_operator_input_unit": data["input"]["unit"]})
-                self.tenzir_operator_output_unit.labels(data["pipeline_id"]).info({"tenzir_operator_input_unit": data["output"]["unit"]})
-                self.tenzir_operator_pipeline_id.info({"pipeline_id": data["pipeline_id"]})
+                duration = re.sub(reg, '', item["duration"])
+                starting_duration = re.sub(reg, '', item["starting_duration"])
+                processing_duration = re.sub(reg, '', item["processing_duration"])
+                scheduled_duration = re.sub(reg, '', item["scheduled_duration"])
+                running_duration = re.sub(reg, '', item["running_duration"])
+                paused_duration = re.sub(reg, '', item["paused_duration"])
+                self.tenzir_operator_run.labels(item["pipeline_id"]).set(duration)
+                self.tenzir_operator_duration.labels(item["pipeline_id"]).set(starting_duration)
+                self.tenzir_operator_starting_duration.labels(item["pipeline_id"]).set(starting_duration)
+                self.tenzir_operator_processing_duration.labels(item["pipeline_id"]).set(processing_duration)
+                self.tenzir_operator_scheduled_duration.labels(item["pipeline_id"]).set(scheduled_duration)
+                self.tenzir_operator_running_duration.labels(item["pipeline_id"]).set(running_duration)
+                self.tenzir_operator_paused_duration.labels(item["pipeline_id"]).set(paused_duration)
+                self.tenzir_operator_input_elements.labels(item["pipeline_id"], item["input"]["unit"]).set(item["input"]["elements"])
+                self.tenzir_operator_output_elements.labels(item["pipeline_id"], item["output"]["unit"]).set(item["output"]["elements"])
+                self.tenzir_operator_input_bytes.labels(item["pipeline_id"], item["input"]["unit"]).set(item["input"]["approx_bytes"])
+                self.tenzir_operator_output_bytes.labels(item["pipeline_id"], item["output"]["unit"]).set(item["output"]["approx_bytes"])
+                self.tenzir_operator_input_unit.labels(item["pipeline_id"]).info({"tenzir_operator_input_unit": item["input"]["unit"]})
+                self.tenzir_operator_output_unit.labels(item["pipeline_id"]).info({"tenzir_operator_input_unit": item["output"]["unit"]})
+                self.tenzir_operator_pipeline_id.info({"pipeline_id": item["pipeline_id"]})
 
 
-            elif not(data.get("loadavg_1m") is None):
-                self.tenzir_loadavg_1m.set(data["loadavg_1m"])
-                self.tenzir_loadavg_5m.set(data["loadavg_5m"])
-                self.tenzir_loadavg_15m.set(data["loadavg_15m"])
+            elif not(item.get("loadavg_1m") is None):
+                self.tenzir_loadavg_1m.set(item["loadavg_1m"])
+                self.tenzir_loadavg_5m.set(item["loadavg_5m"])
+                self.tenzir_loadavg_15m.set(item["loadavg_15m"])
 
-            elif not(data.get("swap_space_usage") is None):
-                self.tenzir_swap_space_usage.set(data["swap_space_usage"])
-                self.tenzir_open_fds.set(data["open_fds"])
-                self.tenzir_current_memory_usage.set(data["current_memory_usage"])
-                self.tenzir_peak_memory_usage.set(data["peak_memory_usage"])
+            elif not(item.get("swap_space_usage") is None):
+                self.tenzir_swap_space_usage.set(item["swap_space_usage"])
+                self.tenzir_open_fds.set(item["open_fds"])
+                self.tenzir_current_memory_usage.set(item["current_memory_usage"])
+                self.tenzir_peak_memory_usage.set(item["peak_memory_usage"])
 
-            elif not(data.get("path") is None):
-                self.tenzir_disk_total_bytes.set(data["total_bytes"])
-                self.tenzir_disk_used_bytes.set(data["used_bytes"])
-                self.tenzir_disk_free_bytes.set(data["free_bytes"])
+            elif not(item.get("path") is None):
+                self.tenzir_disk_total_bytes.set(item["total_bytes"])
+                self.tenzir_disk_used_bytes.set(item["used_bytes"])
+                self.tenzir_disk_free_bytes.set(item["free_bytes"])
+
+            elif not(item.get("partitions") is None):
+                self.tenzir_rebuild_partitions.set(item["partitions"])
+                self.tenzir_rebuild_queued_partitions.set(item["queued_partitions"])
 
             else:
-                self.tenzir_memory_total_bytes.set(data["total_bytes"])
-                self.tenzir_memory_used_bytes.set(data["used_bytes"])
-                self.tenzir_memory_free_bytes.set(data["free_bytes"])
+                self.tenzir_memory_total_bytes.set(item["total_bytes"])
+                self.tenzir_memory_used_bytes.set(item["used_bytes"])
+                self.tenzir_memory_free_bytes.set(item["free_bytes"])
 
-            push_to_gateway('{{ inventory_hostname }}:9091', job = 'tenzir', registry = self.registry)
+            push_to_gateway('s-msk-p-sem-tenzir01:9091', job = 'tenzir', registry = self.registry)
         return json.dumps({"error": 0})
 
+logger.debug(f"# Starting...")
 
 app_metrics = AppMetrics()
 
 app = Flask(__name__)
-app.debug = False
+app.debug = True
 app.add_url_rule("/", methods = ["POST"], view_func = app_metrics.fetch)
