@@ -6,6 +6,12 @@ Tenzir links:
 - [Tenzir docs](https://docs.tenzir.com/get-started)
 - [Exported metrics](https://docs.tenzir.com/operators/metrics).
 
+### Files
+---
+|File|Description|
+|---|---|
+|`tenzir.json`|Grafana dashboard JSON|
+|`tenzir_exporter.py`|Tenzir exporter|
 ---
 
 ### Requirements
@@ -14,6 +20,7 @@ To start work with exporter, you should install following Linux distro packages:
 - python3-devel
 - uwsgi
 - uwsgi-plugin-python3
+- pushgateway
 
 And then install Python PyPi dependencies from file:
 ```
@@ -39,5 +46,3 @@ If dependencies installation was successful, you can try to run exporter with th
 ```
 uwsgi --http-socket 0.0.0.0:8000 --plugin python3 --wsgi-file tenzir_exporter.py --callable app --stats 0.0.0.0:9191
 ```
-
-File `tenzir.json` contains simple Grafana dashboard for exported metrics.
