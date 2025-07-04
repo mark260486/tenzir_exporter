@@ -30,7 +30,7 @@ pip3 install -r requirements.txt
 ### Usage
 To test export for Tenzir node metrics you can use the following command:
 ```
-./tenzir 'metrics --live | to http HOST_WITH_EXPORTER:8000 write json --compact-output'
+./tenzir 'metrics live=true | to "http://HOST_WITH_EXPORTER:8000"
 ```
 If you want to create tenzir pipeline in Tenzir config to get metrics constantly, please use command specified above, like this:
 ```
@@ -38,7 +38,7 @@ If you want to create tenzir pipeline in Tenzir config to get metrics constantly
     metrics-to-prometheus:
       name: Export Tenzir own metrics
       definition: |
-        metrics --live | to http HOST_WITH_EXPORTER:8000 write json --compact-output
+        metrics live=true | to "http://HOST_WITH_EXPORTER:8000"
       restart-on-error: true
 ```
 
